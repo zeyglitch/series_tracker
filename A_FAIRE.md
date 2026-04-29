@@ -1,5 +1,4 @@
 # Ce que tu dois faire toi-même
-
 Ce projet est prêt en local, mais certaines parties doivent encore être configurées manuellement de ton côté.
 
 ## 1. Firebase
