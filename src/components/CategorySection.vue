@@ -1,9 +1,9 @@
 <template>
   <div class="category-section">
     <div class="category-header">
-      <h3 class="category-title">
+      <h3 class="category-title-container">
         <span class="category-icon">📂</span>
-        {{ category.name }}
+        <span class="category-name">{{ category.name }}</span>
         <span class="count-badge">{{ category.series.length }}</span>
       </h3>
       <button class="icon-btn delete-cat-btn" @click="handleDeleteCategory" title="Supprimer le thème">
@@ -111,7 +111,7 @@ const handleRemoveTag = (series, tag) => {
   border-radius: var(--radius-lg);
   padding: 16px;
   animation: slideUp 0.3s ease;
-  min-width: 320px;
+  width: 280px;
   flex: 0 0 auto;
 }
 
@@ -124,13 +124,26 @@ const handleRemoveTag = (series, tag) => {
   border-bottom: 1px solid var(--border-light);
 }
 
-.category-title {
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: var(--text-primary);
+.category-title-container {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 1;
+  min-width: 0;
+  margin-right: 8px;
+}
+
+.category-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.category-name::-webkit-scrollbar {
+  display: none;
 }
 
 .category-icon {
@@ -187,10 +200,10 @@ const handleRemoveTag = (series, tag) => {
   .category-section {
     padding: 12px;
     border-radius: var(--radius-md);
-    min-width: 85vw; /* Prends presque tout l'écran sur mobile pour inviter au scroll */
+    width: 280px;
   }
 
-  .category-title {
+  .category-name {
     font-size: 0.98rem;
   }
 

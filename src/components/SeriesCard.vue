@@ -118,14 +118,18 @@ const counterShort = (type) => {
   font-size: 0.95rem;
   color: var(--text-primary);
   cursor: pointer;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-x: auto;
   white-space: nowrap;
   min-width: 0;
   flex: 1;
   padding: 2px 4px;
   border-radius: var(--radius-sm);
   transition: background var(--transition-fast);
+  scrollbar-width: none;
+}
+
+.series-name::-webkit-scrollbar {
+  display: none;
 }
 
 .series-name:hover {
