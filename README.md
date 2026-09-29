@@ -14,7 +14,9 @@ Projet développé pour répondre à un besoin concret : centraliser le suivi de
 - **Tags & notes** — annotations personnelles par série
 - **Thème sombre / clair** — toggle avec persistance
 - **Export / Import JSON** — sauvegarde et restauration des données
-- **Mobile-first** — interface optimisée pour une utilisation sur téléphone
+- **Web Share API** — partage natif de la sauvegarde sur mobile (iOS/Android)
+- **PWA (Progressive Web App)** — installable sur l'écran d'accueil comme une application native
+- **Mobile-first** — interface optimisée et défilement horizontal adapté au tactile
 
 ## 🛠 Stack technique
 
