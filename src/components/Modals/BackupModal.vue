@@ -53,20 +53,30 @@ const close = () => { uiStore.showBackupModal = false; statusMsg.value = '' }
 
 const shareData = async () => {
   const data = seriesStore.exportData()
-  const file = new File([data], `series-tracker-${new Date().toISOString().slice(0, 10)}.json`, { type: 'application/json' })
+  // Utiliser .txt car iOS/Android bloquent souvent le partage de fichiers .json pour des raisons de sécurité
+  const file = new File([data], `series-tracker-${new Date().toISOString().slice(0, 10)}.txt`, { type: 'text/plain' })
   
   if (navigator.share) {
     try {
-      await navigator.share({
+      const sharePayload = {
         title: 'Sauvegarde Series Tracker',
-        text: 'Voici ma sauvegarde de Series Tracker',
         files: [file]
-      })
+      }
+
+      // Vérifier si le navigateur autorise spécifiquement le partage de ce fichier
+      if (navigator.canShare && !navigator.canShare(sharePayload)) {
+        statusMsg.value = 'Partage de fichier non supporté par ce navigateur.'
+        statusType.value = 'error'
+        return
+      }
+
+      await navigator.share(sharePayload)
       statusMsg.value = 'Partage réussi !'
       statusType.value = 'success'
     } catch (err) {
       if (err.name !== 'AbortError') {
-        statusMsg.value = 'Erreur lors du partage'
+        console.error(err)
+        statusMsg.value = `Erreur du téléphone: ${err.message || 'partage bloqué'}`
         statusType.value = 'error'
       }
     }
