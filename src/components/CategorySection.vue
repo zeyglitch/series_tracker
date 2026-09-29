@@ -110,8 +110,9 @@ const handleRemoveTag = (series, tag) => {
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
   padding: 16px;
-  margin-bottom: 16px;
   animation: slideUp 0.3s ease;
+  min-width: 320px;
+  flex: 0 0 auto;
 }
 
 .category-header {
@@ -185,8 +186,8 @@ const handleRemoveTag = (series, tag) => {
 @media (max-width: 600px) {
   .category-section {
     padding: 12px;
-    margin-bottom: 12px;
     border-radius: var(--radius-md);
+    min-width: 85vw; /* Prends presque tout l'écran sur mobile pour inviter au scroll */
   }
 
   .category-title {

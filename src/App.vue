@@ -55,11 +55,13 @@
         </div>
 
         <!-- Categories -->
-        <CategorySection
-          v-for="cat in filteredCategories"
-          :key="cat.id"
-          :category="cat"
-        />
+        <div class="categories-container" v-if="filteredCategories.length > 0">
+          <CategorySection
+            v-for="cat in filteredCategories"
+            :key="cat.id"
+            :category="cat"
+          />
+        </div>
 
         <!-- Empty state -->
         <div v-if="filteredCategories.length === 0" class="empty-state">
@@ -343,6 +345,35 @@ const filteredCategories = computed(() => {
 .filter-select option {
   background: var(--bg-surface);
   color: var(--text-primary);
+}
+
+/* Categories container */
+.categories-container {
+  display: flex;
+  overflow-x: auto;
+  gap: 16px;
+  padding-bottom: 20px;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-medium) transparent;
+}
+
+.categories-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.categories-container::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 10px;
+}
+
+.categories-container::-webkit-scrollbar-thumb {
+  background-color: var(--border-medium);
+  border-radius: 10px;
+}
+
+.categories-container::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-tertiary);
 }
 
 /* Empty state */
