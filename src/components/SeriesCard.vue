@@ -28,22 +28,22 @@
       <div class="counter-group">
         <span class="counter-label">{{ counterShort(series.counter1Type) }}</span>
         <div class="counter-controls">
-          <button class="counter-btn minus" @click="$emit('decrement', series, 'counter1Value')">−</button>
+          <button class="counter-btn minus" @click="vibrate(); $emit('decrement', series, 'counter1Value')">−</button>
           <span class="counter-value" @click="$emit('edit-counter', series, 1)" title="Cliquer pour modifier">
             {{ series.counter1Value }}
           </span>
-          <button class="counter-btn plus" @click="$emit('increment', series, 'counter1Value')">+</button>
+          <button class="counter-btn plus" @click="vibrate(); $emit('increment', series, 'counter1Value')">+</button>
         </div>
       </div>
 
       <div v-if="series.counter2Type && series.counter2Value !== null" class="counter-group">
         <span class="counter-label">{{ counterShort(series.counter2Type) }}</span>
         <div class="counter-controls">
-          <button class="counter-btn minus" @click="$emit('decrement', series, 'counter2Value')">−</button>
+          <button class="counter-btn minus" @click="vibrate(); $emit('decrement', series, 'counter2Value')">−</button>
           <span class="counter-value" @click="$emit('edit-counter', series, 2)" title="Cliquer pour modifier">
             {{ series.counter2Value }}
           </span>
-          <button class="counter-btn plus" @click="$emit('increment', series, 'counter2Value')">+</button>
+          <button class="counter-btn plus" @click="vibrate(); $emit('increment', series, 'counter2Value')">+</button>
         </div>
       </div>
     </div>
@@ -71,6 +71,12 @@ const props = defineProps({
 })
 
 defineEmits(['edit', 'delete', 'increment', 'decrement', 'cycle-status', 'edit-counter', 'remove-tag'])
+
+const vibrate = () => {
+  if (navigator.vibrate) {
+    navigator.vibrate(15) // Short vibration for haptic feedback
+  }
+}
 
 const statusLabel = computed(() => {
   const map = { ongoing: 'En cours', finished: 'Terminé', todo: 'À lire', dropped: 'Abandonné' }

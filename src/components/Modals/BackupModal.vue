@@ -16,8 +16,11 @@
           </div>
 
           <div class="backup-actions">
+            <button v-if="canShare" class="backup-btn share" @click="shareData">
+              <i class="fas fa-share-nodes"></i> Partager la sauvegarde
+            </button>
             <button class="backup-btn export" @click="exportData">
-              <i class="fas fa-download"></i> Exporter (JSON)
+              <i class="fas fa-download"></i> Télécharger (JSON)
             </button>
             <button class="backup-btn import" @click="triggerImport">
               <i class="fas fa-upload"></i> Importer
@@ -44,7 +47,31 @@ const fileInput = ref(null)
 const statusMsg = ref('')
 const statusType = ref('success')
 
+const canShare = !!navigator.share
+
 const close = () => { uiStore.showBackupModal = false; statusMsg.value = '' }
+
+const shareData = async () => {
+  const data = seriesStore.exportData()
+  const file = new File([data], `series-tracker-${new Date().toISOString().slice(0, 10)}.json`, { type: 'application/json' })
+  
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: 'Sauvegarde Series Tracker',
+        text: 'Voici ma sauvegarde de Series Tracker',
+        files: [file]
+      })
+      statusMsg.value = 'Partage réussi !'
+      statusType.value = 'success'
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        statusMsg.value = 'Erreur lors du partage'
+        statusType.value = 'error'
+      }
+    }
+  }
+}
 
 const exportData = () => {
   const data = seriesStore.exportData()
@@ -156,6 +183,13 @@ const handleImport = (e) => {
   color: white;
 }
 .backup-btn.export:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(124,58,237,0.35); }
+
+.backup-btn.share {
+  background: var(--bg-surface);
+  color: var(--primary-light);
+  border: 1px solid var(--primary);
+}
+.backup-btn.share:hover { background: rgba(124,58,237,0.1); transform: translateY(-1px); }
 
 .backup-btn.import {
   background: var(--bg-input);
