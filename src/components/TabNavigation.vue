@@ -1,93 +1,76 @@
 <template>
-  <nav class="tabs">
-    <button 
-      v-for="tab in tabs"
-      :key="tab"
-      @click="selectTab(tab)"
-      :class="['tab', { active: activeTab === tab }]"
+  <nav class="tab-nav">
+    <button
+      v-for="tab in uiStore.tabs"
+      :key="tab.id"
+      :class="['tab-btn', { active: uiStore.activeTab === tab.id }]"
+      @click="uiStore.setTab(tab.id)"
     >
-      {{ tabLabels[tab] }}
+      <i :class="['fas', tab.icon]"></i>
+      <span>{{ tab.label }}</span>
     </button>
   </nav>
 </template>
 
 <script setup>
-import { computed } from 'vue'
 import { useUIStore } from '../stores/uiStore'
-
 const uiStore = useUIStore()
-
-const tabs = ['manwha', 'manga', 'anime', 'novel']
-const tabLabels = {
-  manwha: '📕 Manwha',
-  manga: '📗 Manga',
-  anime: '📙 Anime',
-  novel: '📚 Novel'
-}
-
-const activeTab = computed(() => uiStore.activeTab)
-
-const selectTab = (tab) => {
-  uiStore.setActiveTab(tab)
-}
 </script>
 
 <style scoped>
-.tabs {
+.tab-nav {
   display: flex;
-  gap: 0.5rem;
-  border-top: 1px solid var(--border-light);
-  padding-top: 0.75rem;
+  gap: 2px;
+  background: var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 3px;
   overflow-x: auto;
-  flex-wrap: wrap;
 }
 
-.tab {
-  padding: 0.75rem 1.5rem;
-  background: transparent;
+.tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
   border: none;
-  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-tertiary);
+  font-family: inherit;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
-  border-bottom: 3px solid transparent;
   transition: all var(--transition-base);
   white-space: nowrap;
-  font-size: 0.95rem;
+  min-width: 0;
 }
 
-.tab:hover {
-  color: var(--text-primary);
-  border-bottom-color: var(--accent-red);
+.tab-btn:hover {
+  color: var(--text-secondary);
+  background: var(--border-light);
 }
 
-.tab.active {
-  color: var(--text-primary);
-  border-bottom-color: var(--accent-red);
+.tab-btn.active {
+  color: var(--text-on-primary);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
 }
 
-@media (max-width: 768px) {
-  .tabs {
-    gap: 0.2rem;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .tab {
-    padding: 0.55rem 0.85rem;
-    font-size: 0.8rem;
-  }
+.tab-btn i {
+  font-size: 0.85rem;
 }
 
 @media (max-width: 480px) {
-  .tabs {
-    gap: 0.25rem;
-    padding-top: 0.55rem;
+  .tab-btn {
+    padding: 8px 10px;
+    font-size: 0.82rem;
+    gap: 4px;
   }
 
-  .tab {
-    padding: 0.5rem 0.75rem;
-    font-size: 0.74rem;
+  .tab-btn i {
+    font-size: 0.78rem;
   }
 }
 </style>

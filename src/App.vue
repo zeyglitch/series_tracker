@@ -1,69 +1,106 @@
 <template>
-  <div class="app" :data-theme="uiStore.theme">
+  <div class="app">
+    <!-- Header -->
     <header class="header">
-      <div class="header-content">
+      <div class="header-inner">
         <div class="header-top">
-          <h1>📖 Manwha Tracker</h1>
-          <button @click="toggleTheme" class="btn btn-theme" :aria-label="themeButtonLabel">
-            {{ themeButtonLabel }}
+          <h1 class="logo">
+            <span class="logo-icon">📖</span>
+            <span class="logo-text">My Series Tracker</span>
+          </h1>
+          <button class="theme-toggle" @click="uiStore.toggleTheme" :title="themeLabel">
+            <i :class="['fas', uiStore.theme === 'dark' ? 'fa-sun' : 'fa-moon']"></i>
           </button>
         </div>
-        <div class="search-container">
+
+        <!-- Search -->
+        <div class="search-wrapper">
+          <i class="fas fa-search search-icon"></i>
           <input
             v-model="searchTerm"
             type="text"
-            placeholder="Chercher une série..."
             class="search-input"
-          >
+            placeholder="Rechercher une série..."
+          />
+          <button v-if="searchTerm" class="search-clear" @click="searchTerm = ''">
+            <i class="fas fa-times"></i>
+          </button>
         </div>
+
+        <!-- Tabs -->
         <TabNavigation />
       </div>
     </header>
 
-    <main class="main-content">
-      <div class="content-wrapper">
+    <!-- Main content -->
+    <main class="main">
+      <div class="content-area">
+        <!-- Filters -->
         <div class="filters-bar">
-          <select v-model="selectedStatus" class="filter-select">
-            <option value="all">Tous les statuts</option>
-            <option value="ongoing">En cours</option>
-            <option value="todo">À lire</option>
-            <option value="finished">Terminé</option>
-            <option value="dropped">Abandonné</option>
-          </select>
-          <select v-model="sortBy" class="filter-select">
-            <option value="last-updated">Dernière modif</option>
-            <option value="name">Nom (A-Z)</option>
-          </select>
+          <div class="filter-item">
+            <select v-model="statusFilter" class="filter-select">
+              <option value="all">Tous les statuts</option>
+              <option value="ongoing">En cours</option>
+              <option value="todo">À lire</option>
+              <option value="finished">Terminé</option>
+              <option value="dropped">Abandonné</option>
+            </select>
+          </div>
+          <div class="filter-item">
+            <select v-model="sortBy" class="filter-select">
+              <option value="last-updated">Dernière modif</option>
+              <option value="name">Nom (A-Z)</option>
+            </select>
+          </div>
         </div>
 
-        <CategorySection 
-          v-for="category in filteredCategories" 
-          :key="category.id"
-          :category="category"
+        <!-- Categories -->
+        <CategorySection
+          v-for="cat in filteredCategories"
+          :key="cat.id"
+          :category="cat"
         />
 
+        <!-- Empty state -->
         <div v-if="filteredCategories.length === 0" class="empty-state">
-          <p>Aucune série trouvée</p>
+          <div class="empty-icon">🔍</div>
+          <p v-if="searchTerm">Aucune série ne correspond à "<strong>{{ searchTerm }}</strong>"</p>
+          <p v-else-if="statusFilter !== 'all'">Aucune série avec ce statut</p>
+          <p v-else>Aucune série pour le moment.<br/>Commencez par ajouter un thème puis une série !</p>
         </div>
-      </div>
-
-      <div class="actions-bar">
-        <button @click="showCategoryForm" class="btn btn-primary">
-          ➕ Ajouter un thème
-        </button>
-        <button @click="showSeriesForm" class="btn btn-primary">
-          ➕ Ajouter une série
-        </button>
-        <button @click="enableNotifications" class="btn btn-secondary">
-          🔔 Notifications
-        </button>
       </div>
     </main>
 
+    <!-- Bottom action bar -->
+    <footer class="action-bar">
+      <button class="action-btn primary" @click="uiStore.showCategoryModal = true">
+        <i class="fas fa-folder-plus"></i>
+        <span>Thème</span>
+      </button>
+      <button class="action-btn primary" @click="uiStore.showSeriesModal = true">
+        <i class="fas fa-plus"></i>
+        <span>Série</span>
+      </button>
+      <button class="action-btn secondary" @click="uiStore.showBackupModal = true">
+        <i class="fas fa-database"></i>
+        <span>Backup</span>
+      </button>
+    </footer>
+
     <!-- Modals -->
-    <SeriesFormModal />
     <CategoryFormModal />
+    <SeriesFormModal />
+    <EditSeriesModal />
     <ConfirmModal />
+    <BackupModal />
+
+    <!-- Toast -->
+    <Transition name="toast">
+      <div v-if="uiStore.toastVisible" class="toast">
+        <i class="fas fa-check-circle"></i>
+        {{ uiStore.toastMessage }}
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -73,108 +110,93 @@ import { useSeriesStore } from './stores/seriesStore'
 import { useUIStore } from './stores/uiStore'
 import TabNavigation from './components/TabNavigation.vue'
 import CategorySection from './components/CategorySection.vue'
-import SeriesFormModal from './components/Modals/SeriesFormModal.vue'
 import CategoryFormModal from './components/Modals/CategoryFormModal.vue'
+import SeriesFormModal from './components/Modals/SeriesFormModal.vue'
+import EditSeriesModal from './components/Modals/EditSeriesModal.vue'
 import ConfirmModal from './components/Modals/ConfirmModal.vue'
-import { notificationService } from './services/notificationService'
+import BackupModal from './components/Modals/BackupModal.vue'
 
 const seriesStore = useSeriesStore()
 const uiStore = useUIStore()
 
+// Init
+uiStore.initTheme()
+seriesStore.load()
+
+// Local state
 const searchTerm = ref('')
-const selectedStatus = ref('all')
+const statusFilter = ref('all')
 const sortBy = ref('last-updated')
 
-const themeButtonLabel = computed(() => uiStore.theme === 'dark' ? '☀️ Thème clair' : '🌙 Thème sombre')
+const themeLabel = computed(() => uiStore.theme === 'dark' ? 'Thème clair' : 'Thème sombre')
+
+// Status sort order
+const statusOrder = { ongoing: 0, todo: 1, finished: 2, dropped: 3 }
 
 const filteredCategories = computed(() => {
-  let categories = seriesStore.getCategoriesByType(uiStore.activeTab)
-  
+  const categories = seriesStore.getCategoriesByType(uiStore.activeTab)
+
   return categories.map(cat => {
-    let series = cat.series || []
-    
-    // Appliquer filtre statut
-    if (selectedStatus.value !== 'all') {
-      series = series.filter(s => s.status === selectedStatus.value)
+    let series = [...(cat.series || [])]
+
+    // Status filter
+    if (statusFilter.value !== 'all') {
+      series = series.filter(s => s.status === statusFilter.value)
     }
-    
-    // Appliquer recherche
+
+    // Search filter
     if (searchTerm.value) {
-      series = series.filter(s => 
-        s.name.toLowerCase().includes(searchTerm.value.toLowerCase())
+      const term = searchTerm.value.toLowerCase()
+      series = series.filter(s =>
+        s.name.toLowerCase().includes(term) ||
+        (s.tags || []).some(t => t.toLowerCase().includes(term)) ||
+        (s.notes || '').toLowerCase().includes(term)
       )
     }
-    
-    // Appliquer tri
+
+    // Sort
     series.sort((a, b) => {
+      // Primary sort by status order when showing all
+      if (statusFilter.value === 'all') {
+        const orderDiff = (statusOrder[a.status] || 0) - (statusOrder[b.status] || 0)
+        if (orderDiff !== 0) return orderDiff
+      }
+
       if (sortBy.value === 'name') {
         return a.name.localeCompare(b.name)
       } else {
-        return (b.lastUpdated || 0) - (a.lastUpdated || 0)
+        // last-updated: newest first
+        const aDate = a.lastUpdated ? new Date(a.lastUpdated).getTime() : 0
+        const bDate = b.lastUpdated ? new Date(b.lastUpdated).getTime() : 0
+        return bDate - aDate
       }
     })
-    
+
     return { ...cat, series }
-  }).filter(cat => cat.series.length > 0)
+  }).filter(cat => cat.series.length > 0 || (!searchTerm.value && statusFilter.value === 'all'))
 })
-
-const showCategoryForm = () => {
-  uiStore.showCategoryModal = true
-}
-
-const showSeriesForm = () => {
-  uiStore.showSeriesModal = true
-}
-
-const toggleTheme = () => {
-  uiStore.toggleTheme()
-}
-
-const enableNotifications = async () => {
-  const permission = await notificationService.requestPermission()
-
-  if (permission === 'granted') {
-    await notificationService.sendTestNotification()
-    alert('Notifications activées')
-  } else if (permission === 'unsupported') {
-    alert('Notifications non supportées sur ce navigateur')
-  } else {
-    alert('Notifications refusées')
-  }
-}
-
-// Sync avec Firebase au démarrage
-seriesStore.loadFromFirebase()
-uiStore.initTheme()
 </script>
 
 <style scoped>
 .app {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  background: linear-gradient(135deg, var(--primary-bg) 0%, var(--secondary-bg) 100%);
-  color: var(--text-secondary);
-  overflow-x: hidden;
+  min-height: 100vh;
+  max-height: 100vh;
 }
 
-.app[data-theme='dark'] {
-  color-scheme: dark;
-}
-
-.app[data-theme='light'] {
-  color-scheme: light;
-}
-
+/* ---- Header ---- */
 .header {
-  background: linear-gradient(135deg, var(--header-bg-start) 0%, var(--header-bg-end) 100%);
-  padding: 1.5rem;
-  border-bottom: 2px solid var(--border-accent);
+  background: var(--bg-header);
+  padding: 16px 16px 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
   box-shadow: var(--shadow-md);
 }
 
-.header-content {
-  max-width: 1400px;
+.header-inner {
+  max-width: 900px;
   margin: 0 auto;
 }
 
@@ -182,247 +204,266 @@ uiStore.initTheme()
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  margin-bottom: 12px;
 }
 
-h1 {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: 1.8rem;
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: white;
+  font-size: 1.4rem;
+  font-weight: 800;
 }
 
-.search-container {
-  margin-bottom: 1rem;
+.logo-icon { font-size: 1.5rem; }
+
+.theme-toggle {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: rotate(15deg);
+}
+
+/* Search */
+.search-wrapper {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.85rem;
+  pointer-events: none;
 }
 
 .search-input {
   width: 100%;
-  padding: 0.75rem 1rem;
-  background: var(--input-bg);
-  border: 1px solid var(--border-accent);
-  border-radius: 8px;
-  color: var(--text-primary);
-  font-size: 1rem;
+  padding: 10px 38px 10px 38px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  font-family: inherit;
+  font-size: 0.95rem;
+  transition: all var(--transition-fast);
 }
 
 .search-input::placeholder {
-  color: var(--text-placeholder);
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .search-input:focus {
   outline: none;
-  background: var(--input-bg-hover);
-  box-shadow: 0 0 12px rgba(139, 92, 246, 0.25);
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 16px rgba(124, 58, 237, 0.25);
 }
 
-.main-content {
-  flex: 1;
+.search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  cursor: pointer;
+  font-size: 0.7rem;
   display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
 }
 
-.content-wrapper {
+.search-clear:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+/* ---- Main ---- */
+.main {
   flex: 1;
   overflow-y: auto;
-  padding: 1.5rem;
-  max-width: 1400px;
-  margin: 0 auto;
-  width: 100%;
+  padding: 16px;
 }
 
+.content-area {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* Filters */
 .filters-bar {
   display: flex;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: 10px;
+  margin-bottom: 16px;
   flex-wrap: wrap;
 }
 
 .filter-select {
-  padding: 0.5rem 1rem;
-  background: var(--surface-elevated);
-  border: 1px solid var(--border-accent);
-  border-radius: 6px;
-  color: var(--text-secondary);
-  font-size: 0.95rem;
-  cursor: pointer;
-  max-width: 100%;
-}
-
-.filter-select option {
-  background: var(--card-bg);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-medium);
+  background: var(--bg-surface);
   color: var(--text-primary);
-}
-
-.filter-select option:checked,
-.filter-select option:hover,
-.filter-select option:focus {
-  background: var(--accent-red);
-  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  min-width: 0;
+  flex: 1;
 }
 
 .filter-select:focus {
   outline: none;
-  box-shadow: 0 0 8px rgba(139, 92, 246, 0.2);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
 }
 
+.filter-select option {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+/* Empty state */
 .empty-state {
   text-align: center;
-  padding: 3rem 1rem;
+  padding: 48px 20px;
   color: var(--text-tertiary);
+  animation: fadeIn 0.4s ease;
 }
 
-.actions-bar {
-  padding: 1.5rem;
-  border-top: 1px solid var(--border-accent);
+.empty-icon {
+  font-size: 3rem;
+  margin-bottom: 12px;
+}
+
+.empty-state p {
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+/* ---- Action bar ---- */
+.action-bar {
   display: flex;
-  gap: 1rem;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-light);
+  background: var(--bg-glass-strong);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   justify-content: center;
-  flex-wrap: wrap;
-  background: var(--actions-bg);
+  flex-shrink: 0;
 }
 
-.btn {
-  padding: 0.75rem 1.5rem;
+.action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: var(--radius-md);
   border: none;
-  border-radius: 8px;
-  font-weight: 600;
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 1rem;
+  transition: all var(--transition-base);
+  flex: 1;
+  max-width: 200px;
 }
 
-.btn-primary {
-  background: linear-gradient(135deg, var(--accent-red) 0%, var(--accent-pink) 100%);
+.action-btn.primary {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
   color: white;
 }
 
-.btn-primary:hover {
+.action-btn.primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(233, 69, 96, 0.35);
+  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.35);
 }
 
-.btn-secondary {
-  background: var(--surface-elevated);
+.action-btn.secondary {
+  background: var(--bg-surface);
   color: var(--text-primary);
   border: 1px solid var(--border-medium);
 }
 
-.btn-secondary:hover {
-  background: var(--surface-hover);
-  transform: translateY(-2px);
+.action-btn.secondary:hover {
+  background: var(--border-light);
+  transform: translateY(-1px);
 }
 
-.btn-theme {
-  padding: 0.6rem 1rem;
-  min-width: 140px;
+/* ---- Toast ---- */
+.toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-elevated);
+  color: var(--status-finished);
+  padding: 10px 20px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--status-finished-bg);
+  box-shadow: var(--shadow-lg);
+  font-size: 0.88rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 2000;
+  white-space: nowrap;
 }
 
-/* Scrollbar personnalisée */
-.content-wrapper::-webkit-scrollbar {
-  width: 8px;
-}
+.toast-enter-active { animation: toast-in 0.3s ease; }
+.toast-leave-active { animation: toast-out 0.25s ease; }
 
-.content-wrapper::-webkit-scrollbar-track {
-  background: var(--scrollbar-track);
-}
-
-.content-wrapper::-webkit-scrollbar-thumb {
-  background: var(--accent-red);
-  border-radius: 4px;
-}
-
-.content-wrapper::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-pink);
-}
-
-@media (max-width: 768px) {
-  .header-top {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .header-content {
-    width: 100%;
-  }
-
-  .header {
-    padding: 0.9rem;
-  }
-
-  h1 {
-    font-size: 1.25rem;
-    line-height: 1.1;
-  }
-
-  .search-container {
-    margin-bottom: 0.85rem;
-  }
-
-  .search-input {
-    padding: 0.8rem 0.9rem;
-    font-size: 0.98rem;
-  }
-
-  .content-wrapper {
-    padding: 0.9rem;
-  }
+/* ---- Responsive ---- */
+@media (max-width: 600px) {
+  .header { padding: 12px 12px 0; }
+  .logo { font-size: 1.15rem; }
+  .logo-icon { font-size: 1.3rem; }
+  .main { padding: 12px; }
 
   .filters-bar {
-    gap: 0.75rem;
-    margin-bottom: 1rem;
-    width: 100%;
     flex-direction: column;
+    gap: 8px;
   }
 
   .filter-select {
     width: 100%;
-    padding: 0.75rem 0.9rem;
-    font-size: 0.95rem;
-    min-width: 0;
   }
 
-  .actions-bar {
-    flex-direction: column;
-    padding: 0.9rem;
-    gap: 0.7rem;
+  .action-bar { padding: 10px 12px; gap: 6px; }
+  .action-btn {
+    padding: 10px 12px;
+    font-size: 0.82rem;
+    max-width: none;
   }
 
-  .btn-theme {
-    width: 100%;
-    min-width: 0;
-  }
+  .action-btn span { display: none; }
+  .action-btn i { font-size: 1.1rem; }
 
-  .btn {
-    width: 100%;
-    min-height: 46px;
-  }
-}
-
-@media (max-width: 480px) {
-  .header {
-    padding: 0.8rem;
-  }
-
-  h1 {
-    font-size: 1.15rem;
-  }
-
-  .content-wrapper {
-    padding: 0.75rem;
-  }
-
-  .filters-bar {
-    gap: 0.65rem;
-  }
-
-  .btn {
-    font-size: 0.95rem;
-  }
-
-  .empty-state {
-    padding: 2rem 1rem;
-  }
+  .toast { bottom: 70px; font-size: 0.82rem; padding: 8px 16px; }
 }
 </style>

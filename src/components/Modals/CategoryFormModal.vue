@@ -1,248 +1,166 @@
 <template>
   <Teleport to="body">
-    <div v-if="uiStore.showCategoryModal" class="modal-backdrop" @click="closeModal">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h2>Ajouter un thème</h2>
-          <button @click="closeModal" class="btn-close">×</button>
+    <Transition name="modal">
+      <div v-if="uiStore.showCategoryModal" class="modal-overlay" @click.self="close">
+        <div class="modal-box">
+          <div class="modal-header">
+            <h2>Ajouter un thème</h2>
+            <button class="close-btn" @click="close">×</button>
+          </div>
+          <form @submit.prevent="submit">
+            <div class="form-group">
+              <label for="cat-type">Type</label>
+              <select id="cat-type" v-model="formType" class="form-control">
+                <option value="manwha">Manwha</option>
+                <option value="manga">Manga</option>
+                <option value="anime">Anime</option>
+                <option value="novel">Novel</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="cat-name">Nom du thème</label>
+              <input id="cat-name" v-model.trim="formName" type="text" class="form-control"
+                placeholder="Ex: Romance, Action, Murim..." required ref="nameInput" />
+            </div>
+            <button type="submit" class="btn-submit" :disabled="!formName">
+              <i class="fas fa-plus"></i> Ajouter
+            </button>
+          </form>
         </div>
-        
-        <form @submit.prevent="submitForm" class="form">
-          <div class="form-group">
-            <label for="category-type">Type:</label>
-            <select v-model="formData.type" id="category-type" class="input" required>
-              <option value="manwha">Manwha</option>
-              <option value="manga">Manga</option>
-              <option value="anime">Anime</option>
-              <option value="novel">Novel</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="category-name">Nom du thème:</label>
-            <input 
-              v-model="formData.name" 
-              id="category-name"
-              type="text"
-              class="input"
-              placeholder="Ex: Romance, Action, Mystère"
-              required
-            >
-          </div>
-
-          <div class="form-footer">
-            <button type="button" @click="closeModal" class="btn btn-secondary">
-              Annuler
-            </button>
-            <button type="submit" class="btn btn-primary">
-              Ajouter
-            </button>
-          </div>
-        </form>
       </div>
-    </div>
+    </Transition>
   </Teleport>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useSeriesStore } from '../../stores/seriesStore'
 import { useUIStore } from '../../stores/uiStore'
 
 const seriesStore = useSeriesStore()
 const uiStore = useUIStore()
 
-const formData = ref({
-  type: 'manwha',
-  name: ''
+const formType = ref('manwha')
+const formName = ref('')
+const nameInput = ref(null)
+
+watch(() => uiStore.showCategoryModal, (val) => {
+  if (val) {
+    formType.value = uiStore.activeTab
+    formName.value = ''
+    setTimeout(() => nameInput.value?.focus(), 100)
+  }
 })
 
-const closeModal = () => {
-  formData.value = { type: 'manwha', name: '' }
-  uiStore.closeCategoryModal()
-}
+const close = () => { uiStore.showCategoryModal = false }
 
-const submitForm = () => {
-  if (!formData.value.name.trim()) {
-    alert('Veuillez entrer un nom pour la catégorie')
-    return
-  }
-
-  const success = seriesStore.addCategory(formData.value.type, formData.value.name)
-  
-  if (success) {
-    closeModal()
+const submit = () => {
+  if (!formName.value) return
+  const ok = seriesStore.addCategory(formType.value, formName.value)
+  if (ok) {
+    uiStore.showToast(`Thème "${formName.value}" ajouté`)
+    close()
   } else {
-    alert('Cette catégorie existe déjà')
+    uiStore.showToast('Ce thème existe déjà !')
   }
 }
 </script>
 
 <style scoped>
-.modal-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  justify-content: center;
-  align-items: center;
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
   z-index: 1000;
-  padding: 1rem;
-  animation: fadeIn 0.2s ease-in-out;
+  padding: 16px;
 }
 
-.modal-content {
-  background: var(--card-bg);
-  border: 1px solid var(--border-accent);
-  border-radius: 12px;
-  max-width: 500px;
+.modal-box {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-xl);
+  padding: 24px;
   width: 100%;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-  animation: slideInUp 0.3s ease-out;
+  max-width: 440px;
+  box-shadow: var(--shadow-lg);
+  animation: scaleIn 0.25s ease;
 }
 
 .modal-header {
-  padding: 1.5rem;
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
   border-bottom: 1px solid var(--border-light);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
 }
 
 .modal-header h2 {
-  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
   color: var(--text-primary);
-  font-size: 1.3rem;
 }
 
-.btn-close {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  font-size: 2rem;
-  cursor: pointer;
-  padding: 0;
-  line-height: 1;
-  transition: color var(--transition-fast);
+.close-btn {
+  width: 32px; height: 32px;
+  border-radius: var(--radius-sm);
+  border: none; background: transparent;
+  font-size: 1.3rem; cursor: pointer;
+  color: var(--text-tertiary);
+  transition: all var(--transition-fast);
 }
-
-.btn-close:hover {
-  color: var(--accent-red);
-}
-
-.form {
-  padding: 1.5rem;
-}
+.close-btn:hover { background: var(--border-light); color: var(--text-primary); }
 
 .form-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: 16px;
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
   font-weight: 600;
-  color: var(--text-primary);
-  font-size: 0.95rem;
-}
-
-.input {
-  width: 100%;
-  padding: 0.75rem;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid var(--border-light);
-  border-radius: 8px;
-  color: var(--text-primary);
-  font-size: 1rem;
-  transition: border-color var(--transition-fast);
-}
-
-.input:focus {
-  outline: none;
-  border-color: var(--accent-red);
-  box-shadow: 0 0 8px rgba(233, 69, 96, 0.2);
-}
-
-.input::placeholder {
-  color: var(--text-tertiary);
-}
-
-.form-footer {
-  display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
-  margin-top: 2rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--border-light);
-}
-
-.btn {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  font-size: 1rem;
-}
-
-.btn-primary {
-  background: var(--accent-red);
-  color: white;
-}
-
-.btn-primary:hover {
-  background: var(--accent-pink);
-  transform: translateY(-2px);
-}
-
-.btn-secondary {
-  background: var(--border-light);
   color: var(--text-secondary);
+  margin-bottom: 6px;
 }
 
-.btn-secondary:hover {
-  background: var(--border-medium);
+.form-control {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-medium);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.95rem;
+  transition: all var(--transition-fast);
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+.form-control:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: var(--bg-input-focus);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
 }
 
-@keyframes slideInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.btn-submit {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: white;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
 }
 
-@media (max-width: 768px) {
-  .modal-content {
-    max-width: 100%;
-  }
+.btn-submit:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(124, 58, 237, 0.35); }
+.btn-submit:disabled { opacity: 0.5; cursor: default; }
 
-  .form {
-    padding: 1rem;
-  }
-
-  .form-footer {
-    flex-direction: column;
-  }
-
-  .btn {
-    width: 100%;
-  }
-}
+/* Transitions */
+.modal-enter-active { transition: opacity 0.2s ease; }
+.modal-leave-active { transition: opacity 0.15s ease; }
+.modal-enter-from, .modal-leave-to { opacity: 0; }
 </style>

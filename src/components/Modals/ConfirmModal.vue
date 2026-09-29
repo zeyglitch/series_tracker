@@ -1,197 +1,98 @@
 <template>
   <Teleport to="body">
-    <div v-if="uiStore.showConfirmModal" class="modal-backdrop" @click="closeModal">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h2>{{ uiStore.confirmModalState.title }}</h2>
-          <button @click="closeModal" class="btn-close">×</button>
-        </div>
-        
-        <div class="modal-body">
-          <p>{{ uiStore.confirmModalState.message }}</p>
-        </div>
-        
-        <div class="modal-footer">
-          <button @click="closeModal" class="btn btn-secondary">
-            {{ uiStore.confirmModalState.cancelText }}
-          </button>
-          <button 
-            @click="confirm"
-            :class="['btn', uiStore.confirmModalState.type === 'danger' ? 'btn-danger' : 'btn-primary']"
-          >
-            {{ uiStore.confirmModalState.confirmText }}
-          </button>
+    <Transition name="modal">
+      <div v-if="uiStore.showConfirmModal" class="modal-overlay" @click.self="cancel">
+        <div class="modal-box">
+          <div class="modal-header">
+            <h2>{{ context?.title || 'Confirmer' }}</h2>
+            <button class="close-btn" @click="cancel">×</button>
+          </div>
+          <p class="confirm-message">{{ context?.message || 'Êtes-vous sûr ?' }}</p>
+          <div class="form-actions">
+            <button class="btn-cancel" @click="cancel">Annuler</button>
+            <button class="btn-danger" @click="confirm">
+              <i class="fas fa-trash-alt"></i> Supprimer
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Transition>
   </Teleport>
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useUIStore } from '../../stores/uiStore'
 
 const uiStore = useUIStore()
+const context = computed(() => uiStore.confirmContext)
 
-const closeModal = () => {
-  uiStore.closeConfirmModal()
-}
-
+const cancel = () => { uiStore.closeConfirm() }
 const confirm = () => {
-  if (uiStore.confirmModalState.action) {
-    uiStore.confirmModalState.action()
-  }
-  closeModal()
+  if (context.value?.onConfirm) context.value.onConfirm()
+  uiStore.closeConfirm()
 }
 </script>
 
 <style scoped>
-.modal-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  padding: 1rem;
-  animation: fadeIn 0.2s ease-in-out;
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1100;
+  padding: 16px;
 }
 
-.modal-content {
-  background: var(--card-bg);
-  border: 1px solid var(--border-accent);
-  border-radius: 12px;
-  max-width: 500px;
-  width: 100%;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-  animation: slideInUp 0.3s ease-out;
+.modal-box {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-xl);
+  padding: 24px; width: 100%; max-width: 400px;
+  box-shadow: var(--shadow-lg);
+  animation: scaleIn 0.25s ease;
 }
 
 .modal-header {
-  padding: 1.5rem;
-  border-bottom: 1px solid var(--border-light);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 16px;
 }
+.modal-header h2 { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
 
-.modal-header h2 {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: 1.3rem;
+.close-btn {
+  width: 32px; height: 32px; border-radius: var(--radius-sm);
+  border: none; background: transparent; font-size: 1.3rem;
+  cursor: pointer; color: var(--text-tertiary); transition: all var(--transition-fast);
 }
+.close-btn:hover { background: var(--border-light); color: var(--text-primary); }
 
-.btn-close {
-  background: none;
-  border: none;
+.confirm-message {
   color: var(--text-secondary);
-  font-size: 2rem;
-  cursor: pointer;
-  padding: 0;
-  line-height: 1;
-  transition: color var(--transition-fast);
+  font-size: 0.95rem;
+  margin-bottom: 20px;
+  line-height: 1.5;
 }
 
-.btn-close:hover {
-  color: var(--accent-red);
-}
+.form-actions { display: flex; gap: 10px; }
 
-.modal-body {
-  padding: 1.5rem;
-  color: var(--text-secondary);
-  line-height: 1.6;
+.btn-cancel {
+  flex: 1; padding: 10px; border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md); background: transparent;
+  color: var(--text-secondary); font-family: inherit; font-size: 0.95rem;
+  font-weight: 600; cursor: pointer; transition: all var(--transition-fast);
 }
-
-.modal-body p {
-  margin: 0;
-}
-
-.modal-footer {
-  padding: 1.5rem;
-  border-top: 1px solid var(--border-light);
-  display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
-}
-
-.btn {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  font-size: 1rem;
-}
-
-.btn-primary {
-  background: var(--accent-red);
-  color: white;
-}
-
-.btn-primary:hover {
-  background: var(--accent-pink);
-  transform: translateY(-2px);
-}
-
-.btn-secondary {
-  background: var(--border-light);
-  color: var(--text-secondary);
-}
-
-.btn-secondary:hover {
-  background: var(--border-medium);
-}
+.btn-cancel:hover { background: var(--border-light); }
 
 .btn-danger {
-  background: #e94560;
-  color: white;
+  flex: 1; padding: 10px; border: none; border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--danger), #dc2626);
+  color: white; font-family: inherit; font-size: 0.95rem; font-weight: 700;
+  cursor: pointer; transition: all var(--transition-base);
+  display: flex; align-items: center; justify-content: center; gap: 6px;
 }
+.btn-danger:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(239,68,68,0.35); }
 
-.btn-danger:hover {
-  background: #ff6b6b;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes slideInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@media (max-width: 768px) {
-  .modal-content {
-    max-width: 100%;
-  }
-
-  .modal-header,
-  .modal-body,
-  .modal-footer {
-    padding: 1rem;
-  }
-
-  .modal-footer {
-    flex-direction: column;
-  }
-
-  .btn {
-    width: 100%;
-  }
-}
+.modal-enter-active { transition: opacity 0.2s ease; }
+.modal-leave-active { transition: opacity 0.15s ease; }
+.modal-enter-from, .modal-leave-to { opacity: 0; }
 </style>

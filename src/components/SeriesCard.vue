@@ -1,489 +1,390 @@
 <template>
-  <div class="series-card" :class="`status-${series.status}`">
-    <div class="series-header">
-      <h3 class="series-name" @click="openDetail">{{ series.name }}</h3>
-      <div class="series-actions">
-        <button @click="editSeries" class="btn-action" title="Éditer">✏️</button>
-        <button @click="deleteSeries" class="btn-action btn-danger" title="Supprimer">🗑️</button>
+  <div class="series-card" :class="'border-' + series.status">
+    <!-- Header row: name + actions -->
+    <div class="card-header">
+      <div class="series-name" @click="$emit('edit', series)" :title="series.name">
+        {{ series.name }}
+      </div>
+      <div class="card-actions">
+        <button
+          class="status-badge"
+          :class="'status-' + series.status"
+          @click="$emit('cycle-status', series)"
+          :title="'Cliquer pour changer le statut'"
+        >
+          {{ statusLabel }}
+        </button>
+        <button class="icon-btn edit-btn" @click="$emit('edit', series)" title="Modifier">
+          <i class="fas fa-pen"></i>
+        </button>
+        <button class="icon-btn delete-btn" @click="$emit('delete', series)" title="Supprimer">
+          <i class="fas fa-trash-alt"></i>
+        </button>
       </div>
     </div>
 
-    <!-- Statut -->
-    <button @click="toggleStatus" :class="['status-badge', `status-${series.status}`]">
-      {{ statusLabel }}
-    </button>
-
-    <!-- Compteurs -->
-    <div class="counters">
+    <!-- Counters -->
+    <div class="counters-row">
       <div class="counter-group">
-        <label class="counter-label">{{ counterNames.counter1 }}</label>
+        <span class="counter-label">{{ counterShort(series.counter1Type) }}</span>
         <div class="counter-controls">
-          <button @click="decrementCounter1" class="btn-counter">-</button>
-          <span class="counter-value">{{ series.counter1Value || 0 }}</span>
-          <button @click="incrementCounter1" class="btn-counter">+</button>
+          <button class="counter-btn minus" @click="$emit('decrement', series, 'counter1Value')">−</button>
+          <span class="counter-value" @click="$emit('edit-counter', series, 1)" title="Cliquer pour modifier">
+            {{ series.counter1Value }}
+          </span>
+          <button class="counter-btn plus" @click="$emit('increment', series, 'counter1Value')">+</button>
         </div>
       </div>
 
-      <div v-if="hasCounter2" class="counter-group">
-        <label class="counter-label">{{ counterNames.counter2 }}</label>
+      <div v-if="series.counter2Type && series.counter2Value !== null" class="counter-group">
+        <span class="counter-label">{{ counterShort(series.counter2Type) }}</span>
         <div class="counter-controls">
-          <button @click="decrementCounter2" class="btn-counter">-</button>
-          <span class="counter-value">{{ series.counter2Value || 0 }}</span>
-          <button @click="incrementCounter2" class="btn-counter">+</button>
+          <button class="counter-btn minus" @click="$emit('decrement', series, 'counter2Value')">−</button>
+          <span class="counter-value" @click="$emit('edit-counter', series, 2)" title="Cliquer pour modifier">
+            {{ series.counter2Value }}
+          </span>
+          <button class="counter-btn plus" @click="$emit('increment', series, 'counter2Value')">+</button>
         </div>
       </div>
     </div>
 
     <!-- Tags -->
-    <div v-if="series.tags && series.tags.length > 0" class="tags">
+    <div v-if="series.tags && series.tags.length" class="tags-row">
       <span v-for="tag in series.tags" :key="tag" class="tag">
         {{ tag }}
-        <button @click="removeTag(tag)" class="tag-close">×</button>
+        <button class="tag-remove" @click="$emit('remove-tag', series, tag)">×</button>
       </span>
     </div>
 
-    <!-- Lien source -->
-    <div v-if="series.sourceUrl" class="source-link">
-      <a :href="series.sourceUrl" target="_blank" rel="noopener noreferrer" class="link">
-        🔗 Voir en ligne
-      </a>
+    <!-- Notes preview -->
+    <div v-if="series.notes" class="notes-preview" :title="series.notes">
+      <i class="fas fa-sticky-note"></i> {{ series.notes }}
     </div>
-
-    <!-- Notes -->
-    <div v-if="series.notes" class="notes">{{ series.notes }}</div>
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
-import { useSeriesStore } from '../stores/seriesStore'
-import { useUIStore } from '../stores/uiStore'
 
 const props = defineProps({
-  series: {
-    type: Object,
-    required: true
-  },
-  category: {
-    type: Object,
-    required: true
-  }
+  series: { type: Object, required: true }
 })
 
-const seriesStore = useSeriesStore()
-const uiStore = useUIStore()
+defineEmits(['edit', 'delete', 'increment', 'decrement', 'cycle-status', 'edit-counter', 'remove-tag'])
 
-const statusLabels = {
-  ongoing: '📖 En cours',
-  todo: '📋 À lire',
-  finished: '✅ Terminé',
-  dropped: '⛔ Abandonné'
-}
-
-const statusLabel = computed(() => statusLabels[props.series.status])
-
-const counterNames = computed(() => {
-  const names = {
-    counter1: 'Ch.',
-    counter2: 'Ep.'
-  }
-  
-  if (props.series.counter1Type === 'seasons') {
-    names.counter1 = 'Saisons'
-    names.counter2 = props.series.counter2Type === 'episodes' ? 'Épisodes' : 'Chapitres'
-  } else if (props.series.counter1Type === 'volumes') {
-    names.counter1 = 'Volumes'
-    names.counter2 = 'Chapitres'
-  } else if (props.series.counter1Type === 'chapters') {
-    names.counter1 = 'Chapitres'
-  }
-  
-  return names
+const statusLabel = computed(() => {
+  const map = { ongoing: 'En cours', finished: 'Terminé', todo: 'À lire', dropped: 'Abandonné' }
+  return map[props.series.status] || props.series.status
 })
 
-const hasCounter2 = computed(() => {
-  return props.series.counter2Type && props.series.counter2Value !== undefined
-})
-
-const incrementCounter1 = () => {
-  seriesStore.incrementCounter(
-    uiStore.activeTab,
-    props.category.id,
-    props.series.id,
-    'counter1Value'
-  )
-}
-
-const decrementCounter1 = () => {
-  seriesStore.decrementCounter(
-    uiStore.activeTab,
-    props.category.id,
-    props.series.id,
-    'counter1Value'
-  )
-}
-
-const incrementCounter2 = () => {
-  seriesStore.incrementCounter(
-    uiStore.activeTab,
-    props.category.id,
-    props.series.id,
-    'counter2Value'
-  )
-}
-
-const decrementCounter2 = () => {
-  seriesStore.decrementCounter(
-    uiStore.activeTab,
-    props.category.id,
-    props.series.id,
-    'counter2Value'
-  )
-}
-
-const toggleStatus = () => {
-  const statuses = ['ongoing', 'todo', 'finished', 'dropped']
-  const currentIndex = statuses.indexOf(props.series.status)
-  const nextStatus = statuses[(currentIndex + 1) % statuses.length]
-  
-  seriesStore.changeStatus(
-    uiStore.activeTab,
-    props.category.id,
-    props.series.id,
-    nextStatus
-  )
-}
-
-const editSeries = () => {
-  uiStore.openSeriesModal(uiStore.activeTab, props.category.id, props.series)
-}
-
-const deleteSeries = () => {
-  uiStore.openConfirmModal(
-    'Supprimer la série',
-    `Êtes-vous sûr de vouloir supprimer "${props.series.name}" ?`,
-    () => {
-      seriesStore.deleteSeries(
-        uiStore.activeTab,
-        props.category.id,
-        props.series.id
-      )
-    },
-    'danger'
-  )
-}
-
-const removeTag = (tag) => {
-  seriesStore.removeTag(
-    uiStore.activeTab,
-    props.category.id,
-    props.series.id,
-    tag
-  )
-}
-
-const openDetail = () => {
-  uiStore.openSeriesDetail(props.series)
+const counterShort = (type) => {
+  const map = { chapters: 'Ch', seasons: 'S', volumes: 'V', episodes: 'Ep' }
+  return map[type] || type
 }
 </script>
 
 <style scoped>
 .series-card {
-  background: rgba(31, 41, 55, 0.6);
-  border: 1px solid var(--border-light);
-  border-left: 4px solid var(--status-ongoing);
-  border-radius: 10px;
-  padding: 1.25rem;
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  border-left: 4px solid var(--border-medium);
   transition: all var(--transition-base);
-  cursor: default;
+  animation: fadeIn 0.25s ease;
 }
 
 .series-card:hover {
-  background: rgba(31, 41, 55, 0.8);
-  box-shadow: 0 0 12px rgba(233, 69, 96, 0.2);
-  transform: translateY(-2px);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
-.series-card.status-finished {
-  border-left-color: var(--status-finished);
-}
+.border-ongoing { border-left-color: var(--status-ongoing); }
+.border-finished { border-left-color: var(--status-finished); }
+.border-todo { border-left-color: var(--status-todo); }
+.border-dropped { border-left-color: var(--status-dropped); }
 
-.series-card.status-todo {
-  border-left-color: var(--status-todo);
-}
-
-.series-card.status-dropped {
-  border-left-color: var(--status-dropped);
-}
-
-.series-header {
+/* Header */
+.card-header {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1rem;
-  gap: 0.5rem;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .series-name {
-  font-size: 1.1rem;
   font-weight: 700;
+  font-size: 0.95rem;
   color: var(--text-primary);
-  margin: 0;
   cursor: pointer;
-  transition: color var(--transition-fast);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
   flex: 1;
-  word-break: break-word;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
 }
 
 .series-name:hover {
-  color: var(--accent-red);
+  background: var(--border-light);
 }
 
-.series-actions {
+.card-actions {
   display: flex;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 4px;
   flex-shrink: 0;
 }
 
-.btn-action {
-  background: transparent;
-  border: none;
-  font-size: 1rem;
-  cursor: pointer;
-  padding: 0.4rem;
-  border-radius: 6px;
-  transition: all var(--transition-fast);
-}
-
-.btn-action:hover {
-  background: rgba(233, 69, 96, 0.2);
-  transform: scale(1.1);
-}
-
-.btn-action.btn-danger:hover {
-  background: rgba(233, 69, 96, 0.3);
-}
-
+/* Status badge */
 .status-badge {
-  display: inline-block;
-  padding: 0.4rem 0.8rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: inherit;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
   border: none;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
   transition: all var(--transition-fast);
-  margin-bottom: 1rem;
-  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
-.status-badge.status-ongoing {
-  background: var(--status-ongoing);
+.status-ongoing {
+  background: var(--status-ongoing-bg);
+  color: var(--status-ongoing);
 }
-
-.status-badge.status-todo {
-  background: var(--status-todo);
+.status-finished {
+  background: var(--status-finished-bg);
+  color: var(--status-finished);
 }
-
-.status-badge.status-finished {
-  background: var(--status-finished);
+.status-todo {
+  background: var(--status-todo-bg);
+  color: var(--status-todo);
 }
-
-.status-badge.status-dropped {
-  background: var(--status-dropped);
+.status-dropped {
+  background: var(--status-dropped-bg);
+  color: var(--status-dropped);
 }
 
 .status-badge:hover {
   transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  filter: brightness(1.1);
 }
 
-.counters {
+/* Icon buttons */
+.icon-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  cursor: pointer;
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+  color: var(--text-tertiary);
+  font-size: 0.85rem;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.edit-btn:hover {
+  background: var(--status-todo-bg);
+  color: var(--status-todo);
+}
+
+.delete-btn:hover {
+  background: var(--status-dropped-bg);
+  color: var(--status-dropped);
+}
+
+/* Counters */
+.counters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
 }
 
 .counter-group {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  background: rgba(0, 0, 0, 0.2);
-  padding: 0.75rem;
-  border-radius: 8px;
+  gap: 6px;
+  background: var(--bg-input);
+  padding: 4px 8px;
+  border-radius: var(--radius-full);
 }
 
 .counter-label {
-  font-size: 0.9rem;
+  font-size: 0.78rem;
   font-weight: 600;
-  color: var(--text-secondary);
-  min-width: 70px;
+  color: var(--text-tertiary);
+  min-width: 20px;
 }
 
 .counter-controls {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 2px;
 }
 
-.btn-counter {
-  background: var(--accent-red);
-  border: none;
-  color: white;
-  width: 28px;
-  height: 28px;
+.counter-btn {
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  cursor: pointer;
-  font-weight: bold;
-  transition: all var(--transition-fast);
+  border: none;
+  font-weight: 700;
   font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.btn-counter:hover {
-  background: var(--accent-pink);
-  transform: scale(1.1);
+.counter-btn.minus {
+  background: var(--border-light);
+  color: var(--text-secondary);
+}
+
+.counter-btn.plus {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: white;
+}
+
+.counter-btn:hover {
+  transform: scale(1.12);
+}
+
+.counter-btn:active {
+  transform: scale(0.95);
 }
 
 .counter-value {
-  font-weight: 700;
-  color: var(--text-primary);
-  min-width: 25px;
+  min-width: 28px;
   text-align: center;
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
 }
 
-.tags {
+.counter-value:hover {
+  background: var(--border-light);
+}
+
+/* Tags */
+.tags-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  gap: 4px;
+  margin-bottom: 4px;
 }
 
 .tag {
-  background: rgba(233, 69, 96, 0.2);
-  color: var(--accent-red);
-  padding: 0.3rem 0.7rem;
-  border-radius: 20px;
-  font-size: 0.85rem;
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 3px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.12), rgba(236, 72, 153, 0.12));
+  color: var(--primary-light);
 }
 
-.tag-close {
+.tag-remove {
   background: none;
   border: none;
-  color: var(--accent-red);
+  color: inherit;
   cursor: pointer;
-  font-size: 1rem;
-  padding: 0;
-  line-height: 1;
-}
-
-.tag-close:hover {
-  opacity: 0.7;
-}
-
-.source-link {
-  margin-bottom: 0.75rem;
-}
-
-.link {
-  color: var(--accent-blue);
-  text-decoration: none;
-  font-size: 0.9rem;
-  transition: color var(--transition-fast);
-}
-
-.link:hover {
-  color: var(--accent-pink);
-  text-decoration: underline;
-}
-
-.notes {
   font-size: 0.85rem;
-  color: var(--text-tertiary);
-  font-style: italic;
-  padding: 0.75rem;
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 6px;
-  border-left: 2px solid var(--accent-red);
+  line-height: 1;
+  padding: 0;
+  opacity: 0.6;
+  transition: opacity var(--transition-fast);
 }
 
-@media (max-width: 768px) {
+.tag-remove:hover {
+  opacity: 1;
+}
+
+/* Notes */
+.notes-preview {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.notes-preview i {
+  margin-right: 4px;
+  font-size: 0.7rem;
+}
+
+/* Mobile */
+@media (max-width: 600px) {
   .series-card {
-    padding: 0.9rem;
+    padding: 10px 12px;
   }
 
-  .series-header {
-    flex-direction: column;
-    gap: 0.65rem;
-    margin-bottom: 0.85rem;
-  }
-
-  .series-actions {
-    width: 100%;
-    justify-content: flex-start;
+  .card-header {
+    flex-wrap: wrap;
   }
 
   .series-name {
-    font-size: 1rem;
+    flex: 1 1 100%;
+    margin-bottom: 6px;
+    font-size: 0.93rem;
+  }
+
+  .card-actions {
+    width: 100%;
+    justify-content: flex-end;
+    gap: 2px;
+  }
+
+  .icon-btn {
+    width: 38px;
+    height: 38px;
+    font-size: 0.9rem;
   }
 
   .status-badge {
-    width: fit-content;
-    margin-bottom: 0.85rem;
+    padding: 5px 12px;
+    font-size: 0.74rem;
+  }
+
+  .counter-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 1.1rem;
+  }
+
+  .counter-value {
+    min-width: 32px;
+    font-size: 0.92rem;
+    padding: 4px 6px;
   }
 
   .counter-group {
-    padding: 0.65rem;
+    padding: 5px 10px;
   }
 
-  .counter-label {
-    min-width: auto;
-  }
-
-  .counter-controls {
-    gap: 0.55rem;
-  }
-
-  .btn-counter {
-    width: 34px;
-    height: 34px;
-  }
-
-  .tags {
-    gap: 0.4rem;
-  }
-
-  .tag {
-    font-size: 0.8rem;
-  }
-
-  .notes {
-    font-size: 0.8rem;
-    padding: 0.65rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .series-card {
-    padding: 0.8rem;
-  }
-
-  .counter-group {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.55rem;
-  }
-
-  .counter-controls {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .btn-action {
-    padding: 0.55rem;
+  .counters-row {
+    gap: 6px;
   }
 }
 </style>
