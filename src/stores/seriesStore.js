@@ -244,22 +244,41 @@ export const useSeriesStore = defineStore('series', () => {
         const keys = Object.keys(row)
         const getVal = (possibleKeys) => {
           const key = keys.find(k => possibleKeys.includes(k.toLowerCase().trim()))
-          return key ? row[key] : ''
+          return key ? String(row[key]) : ''
         }
 
-        const type = getVal(['type']).toLowerCase().trim()
-        const categoryName = getVal(['category', 'categorie']).trim()
+        // Determine app type (manwha/manga/anime/novel)
+        let appType = getVal(['origination', 'type', 'format']).toLowerCase().trim()
+        if (appType === 'manhua') appType = 'manwha'
+        if (!['manwha', 'manga', 'anime', 'novel'].includes(appType)) {
+          appType = 'manwha' // Default to manwha if unknown
+        }
+
         const name = getVal(['name', 'nom', 'titre', 'title']).trim()
+        if (!name) continue // skip invalid row
 
-        if (!['manwha', 'manga', 'anime', 'novel'].includes(type) || !categoryName || !name) {
-          continue // skip invalid row
+        // Determine category and status from CSV's "type" if "category" is missing
+        const csvTypeRaw = getVal(['type']).trim()
+        const csvTypeLower = csvTypeRaw.toLowerCase()
+        
+        let categoryName = getVal(['category', 'categorie']).trim()
+        if (!categoryName) {
+          categoryName = csvTypeRaw || 'Import'
         }
 
-        if (!seriesData.value[type]) seriesData.value[type] = []
-        let cat = seriesData.value[type].find(c => c.name.toLowerCase() === categoryName.toLowerCase())
+        let statusStr = getVal(['status', 'statut']).toLowerCase()
+        if (!statusStr) {
+          if (csvTypeLower === 'reading') statusStr = 'ongoing'
+          else if (csvTypeLower === 'completed') statusStr = 'finished'
+          else if (csvTypeLower === 'dropped') statusStr = 'dropped'
+          else statusStr = 'ongoing'
+        }
+
+        if (!seriesData.value[appType]) seriesData.value[appType] = []
+        let cat = seriesData.value[appType].find(c => c.name.toLowerCase() === categoryName.toLowerCase())
         if (!cat) {
           cat = { id: Date.now().toString() + Math.random().toString(), name: categoryName, series: [] }
-          seriesData.value[type].push(cat)
+          seriesData.value[appType].push(cat)
         }
 
         const tagsRaw = getVal(['tags', 'etiquettes'])
@@ -269,10 +288,10 @@ export const useSeriesStore = defineStore('series', () => {
           id: Date.now().toString() + Math.random().toString(),
           name: name,
           counter1Type: getVal(['counter1type', 'compteur1type']) || 'chapters',
-          counter1Value: Number(getVal(['counter1value', 'compteur1valeur', 'valeur1'])) || 0,
+          counter1Value: Number(getVal(['read', 'counter1value', 'compteur1valeur', 'valeur1'])) || 0,
           counter2Type: getVal(['counter2type', 'compteur2type']) || null,
           counter2Value: getVal(['counter2value', 'compteur2valeur', 'valeur2']) ? Number(getVal(['counter2value', 'compteur2valeur', 'valeur2'])) : null,
-          status: getVal(['status', 'statut']).toLowerCase() || 'ongoing',
+          status: statusStr,
           tags: tags,
           notes: getVal(['notes', 'note']) || '',
           createdAt: new Date().toISOString(),
