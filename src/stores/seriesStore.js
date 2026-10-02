@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import Papa from 'papaparse'
 
 const STORAGE_KEY = 'seriesTrackerData'
 
@@ -228,6 +229,64 @@ export const useSeriesStore = defineStore('series', () => {
     }
   }
 
+  const importCsvData = (csvString) => {
+    try {
+      const results = Papa.parse(csvString, { header: true, skipEmptyLines: true })
+      if (results.errors.length > 0 && results.data.length === 0) {
+        return { success: false, error: 'Format CSV invalide ou vide.' }
+      }
+
+      // Clear existing data to match JSON import behavior
+      seriesData.value = { manwha: [], manga: [], anime: [], novel: [] }
+
+      let importedCount = 0
+      for (const row of results.data) {
+        const keys = Object.keys(row)
+        const getVal = (possibleKeys) => {
+          const key = keys.find(k => possibleKeys.includes(k.toLowerCase().trim()))
+          return key ? row[key] : ''
+        }
+
+        const type = getVal(['type']).toLowerCase().trim()
+        const categoryName = getVal(['category', 'categorie']).trim()
+        const name = getVal(['name', 'nom', 'titre', 'title']).trim()
+
+        if (!['manwha', 'manga', 'anime', 'novel'].includes(type) || !categoryName || !name) {
+          continue // skip invalid row
+        }
+
+        if (!seriesData.value[type]) seriesData.value[type] = []
+        let cat = seriesData.value[type].find(c => c.name.toLowerCase() === categoryName.toLowerCase())
+        if (!cat) {
+          cat = { id: Date.now().toString() + Math.random().toString(), name: categoryName, series: [] }
+          seriesData.value[type].push(cat)
+        }
+
+        const tagsRaw = getVal(['tags', 'etiquettes'])
+        const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : []
+
+        cat.series.push({
+          id: Date.now().toString() + Math.random().toString(),
+          name: name,
+          counter1Type: getVal(['counter1type', 'compteur1type']) || 'chapters',
+          counter1Value: Number(getVal(['counter1value', 'compteur1valeur', 'valeur1'])) || 0,
+          counter2Type: getVal(['counter2type', 'compteur2type']) || null,
+          counter2Value: getVal(['counter2value', 'compteur2valeur', 'valeur2']) ? Number(getVal(['counter2value', 'compteur2valeur', 'valeur2'])) : null,
+          status: getVal(['status', 'statut']).toLowerCase() || 'ongoing',
+          tags: tags,
+          notes: getVal(['notes', 'note']) || '',
+          createdAt: new Date().toISOString(),
+          lastUpdated: new Date().toISOString()
+        })
+        importedCount++
+      }
+      save()
+      return { success: true, count: importedCount }
+    } catch (e) {
+      return { success: false, error: 'Erreur lors de la lecture du CSV: ' + e.message }
+    }
+  }
+
   // ---- Stats ----
   const totalCount = computed(() => {
     let count = 0
@@ -260,6 +319,7 @@ export const useSeriesStore = defineStore('series', () => {
     addTag,
     removeTag,
     exportData,
-    importData
+    importData,
+    importCsvData
   }
 })

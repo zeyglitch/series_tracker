@@ -23,9 +23,9 @@
               <i class="fas fa-download"></i> Télécharger (JSON)
             </button>
             <button class="backup-btn import" @click="triggerImport">
-              <i class="fas fa-upload"></i> Importer
+              <i class="fas fa-upload"></i> Importer (JSON / CSV)
             </button>
-            <input type="file" ref="fileInput" accept=".json" @change="handleImport" style="display:none" />
+            <input type="file" ref="fileInput" accept=".json,.csv" @change="handleImport" style="display:none" />
           </div>
 
           <p v-if="statusMsg" class="status-msg" :class="statusType">{{ statusMsg }}</p>
@@ -104,14 +104,23 @@ const handleImport = (e) => {
   const file = e.target.files?.[0]
   if (!file) return
 
+  const isCsv = file.name.toLowerCase().endsWith('.csv')
+
   const reader = new FileReader()
   reader.onload = (ev) => {
     if (!confirm('Voulez-vous vraiment importer ces données ? Cela écrasera vos données actuelles.')) {
+      e.target.value = ''
       return
     }
-    const result = seriesStore.importData(ev.target.result)
+    
+    const result = isCsv 
+      ? seriesStore.importCsvData(ev.target.result) 
+      : seriesStore.importData(ev.target.result)
+
     if (result.success) {
-      statusMsg.value = 'Données importées avec succès !'
+      statusMsg.value = isCsv 
+        ? `Données importées avec succès (${result.count} séries) !` 
+        : 'Données importées avec succès !'
       statusType.value = 'success'
       uiStore.showToast('Données importées !')
     } else {
